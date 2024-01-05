@@ -1,7 +1,3 @@
-/*
- * hello this is a code to read WMBUS frames from Axioma meter using RC1180 Module
- * Written by Raj Vignesh
- * */
 #include <SoftwareSerial.h>
 
 #define mbus Serial1
@@ -87,6 +83,7 @@ void loop()
   Serial.println("Starting Acquisition");
   wmbus();
   Serial.println("End of Acquisition");
+  decodeWmbusFrame_Axioma();
   if(telegramDecodedFlag == 1)
   {
     //Transmit over LTE code to come here
@@ -130,6 +127,58 @@ void wmbus()
   Serial.println();
   //mbus.flush();
   //mbus.end();
+}
+
+void decodeWmbusFrame_Axioma()
+{
+  if (mBusData[1] == 0x44 && mBusData[10] == 0x7A)
+  {
+    frameLength = mBusData[0];
+    uint16_t mfrID = ((uint32_t)mBusData[3] << 8) | ((uint32_t)mBusData[2]);
+
+    meterID="";
+    for ( int i = 7; i >= 4; i--)
+    {
+      char hexString[2]; // Assuming a 1-byte integer (2 characters) - Temporary Variable
+      itoa(mBusData[i], hexString, 16);
+      Serial.print(hexString);
+//      if (mBusData[i] <= 0x09)
+//      {
+//        meterID = meterID + "0" + hexString;
+//      }
+//      else
+//      {
+//        meterID = meterID + hexString;
+//      }
+    }
+    Serial.println(meterID);
+   
+    txnCount = mBusData[11];
+
+    totaliser = ((uint32_t)mBusData[26] << 24) | ((uint32_t)mBusData[25] << 16) | ((uint32_t)mBusData[24] << 8) | ((uint32_t)mBusData[23]);
+
+    battery = mBusData[frameLength];
+
+    Serial.print("CF Recd With Meter ID: ");
+    Serial.println(meterID);
+    Serial.print("Manufacturer ID: ");
+    Serial.println(mfrID);
+    Serial.print("Transmission Count: ");
+    Serial.println(txnCount);
+    Serial.print("Total Volume: ");
+    Serial.println(totaliser);
+    Serial.print("Frame Length: ");
+    Serial.println(frameLength);
+    Serial.print("Battery: ");
+    Serial.println(battery);
+    
+    telegramDecodedFlag = 1;
+  }
+  else
+  {
+    Serial.println("No or Invalid Frame Received");
+    telegramDecodedFlag = 0;
+  }
 }
 
 void configNVMem(byte reg, byte val, String comment)
